@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nyx-Iframe-Fractal</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: Arial, sans-serif;
+        }
+
+        #gui {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 10;
+        }
+
+        .iframe-div {
+            position: absolute;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="gui">
+        <button id="addIframe">Add Iframe</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.133.1/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/FlyControls.js"></script>
+
+    <script>
+        const scene = new THREE.Scene();
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 10, 100);
+
+
+        const flyControls = new THREE.FlyControls(camera, THREE.WebGLRenderer.domElement);
+        flyControls.movementSpeed = 1500;
+        flyControls.rollSpeed = Math.PI / 24;
+        flyControls.autoForward = false;
+        flyControls.dragToLook = true;
+        flyControls.enabled = false;
+
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+
+        const pointLight = new THREE.PointLight(0x00ffcc, 1, 50);
+        pointLight.position.set(0, 10, 10);
+        scene.add(pointLight);
+
+        const iframes = [];
+        let spiralStep = 0; // Track the current step for the cone layout
+
+        document.getElementById('addIframe').addEventListener('click', () => {
+            const iframeSrc = "https://www.youtube.com/embed/PH0qV2yLlW0?si=bLSjTBDWaaco9BpL";
+            const { x, y, z } = calculateConePosition(spiralStep);
+            const iframePlane = createIframePlane(iframeSrc, x, y, z);
+            iframes.push(iframePlane);
+            scene.add(iframePlane.mesh);
+            spiralStep++;
+        });
+
+        function createIframePlane(src, x, y, z) {
+            const iframeDiv = document.createElement('div');
+            iframeDiv.classList.add('iframe-div');
+            iframeDiv.style.width = '320px';
+            iframeDiv.style.height = '180px';
+
+            const iframe = document.createElement('iframe');
+            iframe.src = src;
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.border = 'none';
+
+            iframeDiv.appendChild(iframe);
+            document.body.appendChild(iframeDiv);
+
+            const geometry = new THREE.PlaneGeometry(3, 1.6875); // Match iframe aspect ratio
+            const material = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, visible: false });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(x, y, z);
+
+            return { div: iframeDiv, mesh: mesh };
+        }
+
+        function calculateConePosition(step) {
+            const initialZ = -1000; // Starting point far away from the camera
+            const overlap = 0.75; // Overlap factor (25% overlap)
+            const radius = 5 - step * 0.1; // Radius decreases as we move closer
+            const angle = step * Math.PI / 6; // Adjust angle for spacing
+            const x = radius * step * 10 *  Math.cos(angle);
+            const y = radius * step * 10 *  Math.sin(angle);
+            const z = initialZ + step * 10 * overlap; // Adjust Z to move closer with overlap
+            return { x, y, z };
+        }
+
+        function updateIframePositions() {
+            iframes.forEach(({ div, mesh }) => {
+                const vector = mesh.position.clone();
+                vector.project(camera);
+
+                const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+                const y = (vector.y * -0.5 + 0.5) * window.innerHeight;
+
+                div.style.left = `${x - div.offsetWidth / 2}px`;
+                div.style.top = `${y - div.offsetHeight / 2}px`;
+            });
+        }
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            updateIframePositions();
+            const delta = clock.getDelta();
+            flyControls.update(delta);
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        //Contact: nyx4d@proton.me
+    </script>
+</body>
+</html>
